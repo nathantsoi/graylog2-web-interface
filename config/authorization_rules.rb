@@ -24,7 +24,9 @@ authorization do
       :togglefavorited,
       :togglealarmactive,
       :togglealarmforce,
+      :togglecallbackactive,
       :rules,
+      :alarms,
       :forward,
       :analytics,
       :settings,
@@ -51,7 +53,7 @@ authorization do
 
     has_permission_on :settings, :to => [:index, :store, :removecolumn]
 
-    has_permission_on :systemsettings, :to => [:index, :allow_usage_stats]
+    has_permission_on :systemsettings, :to => [:index, :allow_usage_stats, :toggle_alarmcallback_force]
 
     has_permission_on :users, :to => [:new, :index, :show, :create, :edit, :delete, :update]
 
@@ -66,6 +68,8 @@ authorization do
     has_permission_on :additionalcolumns, :to => [:index]
 
     has_permission_on :amqp_settings, :to => [:index, :create, :destroy]
+
+    has_permission_on :plugin_configuration, :to => [:configure, :store]
   end
 
   role :reader do

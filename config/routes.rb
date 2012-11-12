@@ -58,6 +58,7 @@ Graylog2WebInterface::Application.routes.draw do
 
     member do
       get :analytics
+      get :alarms
       post :favorite
       post :unfavorite
       post :alertable
@@ -73,6 +74,7 @@ Graylog2WebInterface::Application.routes.draw do
       post :togglefavorited
       post :togglealarmforce
       post :toggledisabled
+      post :togglecallbackactive
       post :rename
       post :clone
       get :settings
@@ -137,12 +139,17 @@ Graylog2WebInterface::Application.routes.draw do
   resources :systemsettings do
     collection do
       post :allow_usage_stats
+      post :toggle_alarmcallback_force
     end
   end
 
   resources :amqp_settings
 
   match '/visuals/fetch/:id' => 'visuals#fetch',:as => "visuals"
+
+  # The contraints makes the typeclass parameter accept dots. Everything except slash is allowed.
+  match '/plugin_configuration/configure/:plugin_type/:typeclass' => "plugin_configuration#configure", :constraints => { :typeclass => /[^\/]+/ }, :via => :get
+  match '/plugin_configuration/configure/:plugin_type/:typeclass' => "plugin_configuration#store", :constraints => { :typeclass => /[^\/]+/ }, :via => :post
 
   root :to => 'messages#index'
 end
