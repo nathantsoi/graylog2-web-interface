@@ -55,6 +55,10 @@ $(document).ready(function() {
                 notify("Remember to possibly escape characters in the regular expression." +
                        "A typical mistake is forgetting to escape the dot in filenames.");
                 break;
+            case '12':
+                field = $('.stream-value-facility-regex');
+                notify("Remember to possibly escape characters in the regular expression.");
+                break;
         }
         field.removeAttr("disabled");
         field.show();
@@ -290,6 +294,24 @@ $(document).ready(function() {
     $("#health-show-all-indices").bind('click', function() {
       $(this).hide();
       $("#health-indices-more").slideDown();
+      return false;
+    });
+
+    // Stream output chooser.
+    $('#stream-outputs-chooser').bind('change', function() {
+      $(".stream-output-fields").hide();
+      $("#stream-output-fields-" + $(this).val().replace(/\./g, "_")).show();
+    });
+
+    // Stream output show edit form.
+    $('.stream-output-edit-link').bind('click', function() {
+      $("#stream-output-edit-" + $(this).attr("data-output-id")).toggle();
+      return false;
+    });
+
+    // Stream rule show edit form.
+    $('.stream-rule-edit-link').bind('click', function() {
+      $("#stream-rule-edit-" + $(this).attr("data-rule-id")).toggle();
       return false;
     });
 

@@ -54,10 +54,6 @@ class StreamsController < ApplicationController
     @new_rule = Streamrule.new
   end
 
-  def forward
-    @new_forwarder = Forwarder.new
-  end
-
   def analytics
     @load_flot = true
   end
@@ -67,6 +63,10 @@ class StreamsController < ApplicationController
 
   def alarms
     @alarm_callbacks = AlarmCallback.all
+  end
+
+  def outputs
+    @outputs = MessageOutput.all_non_standard
   end
 
   def setdescription
@@ -159,7 +159,7 @@ class StreamsController < ApplicationController
         flash[:error] = "Could not update alarm settings: Missing parameters."
     end
 
-    redirect_to settings_stream_path(@stream)
+    redirect_to alarms_stream_path(@stream)
   end
 
   def create
@@ -315,6 +315,63 @@ class StreamsController < ApplicationController
     end
 
     redirect_to settings_stream_path(@stream)
+  end
+
+  def add_output
+    key = params[:typeclass].gsub(".", "_")
+    entry = params[:config][key]
+
+    if entry["description"].blank?
+      flash[:error] = "Description is missing!"
+      redirect_to outputs_stream_path(@stream) and return
+    end
+
+    entry[:id] = BSON::ObjectId.new
+    entry[:typeclass] = params[:typeclass]
+    @stream.outputs << entry
+
+    if @stream.save
+      flash[:notice] = "Output has been added."
+    else
+      flash[:error] = "Could not add output!"
+    end
+
+    redirect_to outputs_stream_path(@stream)
+  end
+
+  def delete_output
+    @stream.outputs.delete_if { |o| o["id"] == BSON::ObjectId.from_string(params["output_id"]) }
+
+    if @stream.save
+      flash[:notice] = "Output has been deleted."
+    else
+      flash[:error] = "Could not delete output!"
+    end
+
+    redirect_to outputs_stream_path(@stream)
+  end
+
+  def edit_output
+    if params["config"]["description"].blank?
+      flash[:error] = "Description is missing!"
+      redirect_to outputs_stream_path(@stream) and return
+    end
+
+    output = @stream.outputs.select { |o| o["id"] == BSON::ObjectId.from_string(params["output_id"]) }
+    output = params["config"]
+    output["id"] = BSON::ObjectId.from_string(params["output_id"])
+    output["typeclass"] = params["typeclass"]
+
+    @stream.outputs.delete_if { |o| o["id"] == BSON::ObjectId.from_string(params["output_id"]) }
+    @stream.outputs << output
+
+    if @stream.save
+      flash[:notice] = "Output has been updated."
+    else
+      flash[:error] = "Could not update output!"
+    end
+
+    redirect_to outputs_stream_path(@stream)
   end
 
   protected

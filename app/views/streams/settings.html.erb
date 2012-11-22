@@ -7,9 +7,6 @@
 <div class="short-description">These settings are only applied for your user.</div>
 
 <%=raw ajaxtrigger(:favorite, "Favorite", togglefavorited_stream_path(@stream), @stream.favorited?(current_user)) %>
-<br />
-
-<%=raw ajaxtrigger(:alarm, "Receive alarms of this stream", toggle_alertedstream_path(@stream), @stream.alerted?(current_user) ) %> <%= tooltip("Notifications") %>
 <br /><br />
 
 <h2>Category</h2>
@@ -57,7 +54,7 @@
 
 
 <h2>Additional Columns</h2>
-<div class="short-description">Add additional columns to display GELF message fields.</div>
+<div class="short-description">Add additional columns to display more fields in the messages table.</div>
 <ul id="streams-additional-colums-list">
 <% if @stream.additional_columns.empty? %>
   <li>No additional columns configured.</li>
