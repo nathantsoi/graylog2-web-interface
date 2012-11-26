@@ -57,11 +57,11 @@
         @quickfilter_result_count = @messages.total_result_count
       end
     end
-  rescue Tire::Search::SearchRequestFailed
-      flash[:error] = "Syntax error in search query or empty index."
-      @messages = MessageResult.new
-      @total_count = 0
-      @quickfilter_result_count = @messages.total_result_count
+  #rescue Tire::Search::SearchRequestFailed
+  ##    flash[:error] = "Syntax error in search query or empty index."
+  #    @messages = MessageResult.new
+  #    @total_count = 0
+  #    @quickfilter_result_count = @messages.total_result_count
   end
 
   # Not possible to do this via before_filter because of scope decision by params hash
@@ -114,18 +114,6 @@
     end
   end
 
-  def destroy
-    render :status => :forbidden, :text => "forbidden" and return if !::Configuration.allow_deleting
-
-    if MessageGateway.delete_message(params[:id])
-      flash[:notice] = "Message has been deleted."
-    else
-      flash[:error] = "Could not delete message."
-    end
-
-    redirect_to :action => "index"
-  end
-
   def showrange
     @has_sidebar = true
     @load_flot = true
@@ -151,7 +139,32 @@
     @use_backtotop = true
     
     begin
-      @messages = MessageGateway.universal_search(params[:page], params[:query], :stream => @stream, :host => @host)
+      if params[:timespan].nil? or params[:timespan].to_i == 0
+        @since = 0
+      else
+        @since = Time.now.to_i-params[:timespan].to_i
+
+        if params[:timespan].to_i <= 8.hours
+          @default_interval = "minute"
+        end
+
+        if params[:timespan].to_i > 8.hours
+          @default_interval = "hour"
+        end
+
+        if params[:timespan].to_i >= 1.month
+          @default_interval = "day"
+        end
+
+      end
+
+      @messages = MessageGateway.universal_search(
+        params[:page],
+        params[:query],
+        :stream => @stream,
+        :host => @host,
+        :since => @since
+      )
     rescue Tire::Search::SearchRequestFailed
       @messages = MessageResult.new
       @messages.total_result_count = 0
