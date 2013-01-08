@@ -1,6 +1,7 @@
 class Configuration
-  @general_config = YAML::load File.read(Rails.root.to_s + "/config/general.yml")
-  @indexer_config = YAML::load File.read(Rails.root.to_s + "/config/indexer.yml")
+  @general_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/general.yml")
+  @indexer_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/indexer.yml")
+  @ldap_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/ldap.yml")
 
   def self.config_value(root, nesting, key, default = nil)
     [root, root[nesting.to_s], root[nesting.to_s][key.to_s]].any?(&:blank?) ? default : root[nesting.to_s][key.to_s]
@@ -24,65 +25,16 @@ class Configuration
     general_config :allow_version_check, false
   end
 
+  def self.is_demo_system?
+    general_config :is_demo_system, false
+  end
+
   def self.custom_cookie_name
     general_config :custom_cookie_name
   end
 
   def self.date_format
     general_config :date_format, "%d.%m.%Y - %H:%M:%S"
-  end
-
-  def self.hide_message_stats?
-    general_config :hide_message_stats, false
-  end
-
-  def self.subscr_config(key, default)
-    nested_general_config :subscriptions, key, default
-  end
-
-  def self.subscription_from_address
-    subscr_config :from, 'graylog2@example.org'
-  end
-
-  def self.subscription_subject
-    subscr_config :subject, "[graylog2] Subscription"
-  end
-
-  def self.streamalarm_config(key, default)
-    nested_general_config :streamalarms, key, default
-  end
-
-  def self.streamalarm_from_address
-    streamalarm_config :from, "graylog2@example.org"
-  end
-
-  def self.streamalarm_subject
-    streamalarm_config :subject, "[graylog2] Stream alarm!"
-  end
-
-  def self.realtime_config(key, default)
-    nested_general_config :realtime, key, default
-  end
-
-  def self.realtime_enabled?
-    realtime_config :enabled, false
-  end
-
-  def self.realtime_websocket_url
-    url = realtime_config :websocket_url, nil
-    return nil if url.nil?
-    url.chop! if url[-1] == "/"
-
-    return url
-  end
-
-  def self.realtime_websocket_token
-    token = realtime_config :token, nil
-    return nil if token.nil?
-
-    raise "configured websocket token (general.yml) must be alphanumeric" unless token =~ /^\w+$/i
-
-    return token
   end
 
   def self.indexer_config(key = nil, default = nil)
@@ -104,4 +56,53 @@ class Configuration
   def self.indexer_recent_index_name
     indexer_config :recent_index_name
   end
+
+  def self.ldap_config(key, default = nil)
+    config_value @ldap_config, :ldap, key, default
+  end
+
+  def self.ldap_enabled?
+    ldap_config :enabled, false
+  end
+
+  def self.ldap_host
+    ldap_config :host
+  end
+
+  def self.ldap_port
+    ldap_config :port, 389
+  end
+
+  def self.ldap_tls_enabled?
+    ldap_config :tls_enabled, false
+  end
+
+  def self.ldap_displayname_attribute
+    ldap_config :displayname_attribute, 'cn'
+  end
+
+  def self.ldap_mail_attribute
+    ldap_config :mail_attribute, 'mail'
+  end
+
+  def self.ldap_user_dn_pattern
+    ldap_config :user_dn_pattern
+  end
+  
+  def self.ldap_search_base_dn
+    ldap_config :search_base_dn
+  end
+
+  def self.ldap_search_filter
+    ldap_config :search_filter
+  end
+
+  def self.ldap_search_bind_dn
+    ldap_config :search_bind_dn
+  end
+
+  def self.ldap_search_bind_password
+    ldap_config :search_bind_password
+  end
+
 end

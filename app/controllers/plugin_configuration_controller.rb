@@ -1,5 +1,7 @@
 class PluginConfigurationController < ApplicationController
 
+  before_filter :block_demo_access
+
   filter_access_to :all
 
   def configure
@@ -29,9 +31,22 @@ class PluginConfigurationController < ApplicationController
   			return AlarmCallback.where(:typeclass => typeclass).first.requested_config
       when "message_output"
         return MessageOutput.where(:typeclass => typeclass).first.requested_config
+      when "message_input"
+        return MessageInput.where(:typeclass => typeclass).first.requested_config
+      when "initializer"
+        return Initializer.where(:typeclass => typeclass).first.requested_config
+      when "transport"
+        return Transport.where(:typeclass => typeclass).first.requested_config
   	end
   rescue
   	{}
+  end
+
+  def block_demo_access
+    if ::Configuration.is_demo_system?
+      flash[:notice] = "Sorry, plugin configurations are blocked in demo mode."
+      redirect_to :controller => :systemsettings
+    end
   end
 
 end

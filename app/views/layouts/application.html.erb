@@ -12,18 +12,15 @@
   <%= stylesheet_link_tag "sections" %>
   <%= stylesheet_link_tag "messages" %>
   <%= stylesheet_link_tag "shell" %>
-  <%= javascript_include_tag "application" %>
+
+  <script src="/assets/application.js?body=1" type="text/javascript"></script>
+  
   <%= javascript_include_tag("jit") if @load_jit %>
   <% if @load_flot %>
     <%= javascript_include_tag("flot") %>
   <% end %>
-  <% if @load_messages %>
-    <%= javascript_include_tag("messages.js") %>
-  <% end %>
 
   <%= javascript_include_tag "backtotop" if @use_backtotop %>
-
-  <%= javascript_include_tag "realtime" if @has_realtime %>
 </head>
 <body>
   <%= javascript_tag("var relative_url_root = '#{controller.config.relative_url_root}';") %>

@@ -126,7 +126,7 @@ $(document).ready(function() {
       $("#analytics-new-messages-update-loading").show();
 
       // Update graph.
-      $.post($(this).attr("data-updateurl") + "&hours=" + range_num, function(response) {
+      $.get($(this).attr("data-updateurl") + "&hours=" + range_num, function(response) {
 
         // Plot is defined inline. (I suck at JavaScript)
         plot(response.data);
@@ -315,6 +315,33 @@ $(document).ready(function() {
       return false;
     });
 
+    var messagesHelper = function(elem) {
+
+      if ($(elem).attr("class") == "messages-link") { 
+        if ($(elem).attr("data-modal")) {
+          $("#messages-show-terms-modal").modal({ overlayClose: true });
+        }
+
+        if (!$(elem).attr("data-confirm")) {
+          return true;
+        } else {
+          if (confirm($(elem).attr("data-confirm"))) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+    };
+
+    $("#sidebar-inner").delegate("a", "click", function(e) {
+      messagesHelper(this);
+    });
+
+    $("#content-inner").delegate("a", "click", function(e) {
+      messagesHelper(this);
+    });
+
     // Key bindings.
     //standardMapKeyOptions = { overlayClose:true }
     //$.mapKey("s", function() { $("#modal-stream-chooser").modal(standardMapKeyOptions); });
@@ -324,7 +351,7 @@ $(document).ready(function() {
 
     setInterval(function(){
       // Update current throughput every 5 seconds
-      $.post("/health/currentthroughput", function(json) {
+      $.get("/health/currentthroughput", function(json) {
         count = $(".health-throughput-current");
         count.html(parseInt(json.count));
         count.fadeOut(200, function() {
@@ -349,7 +376,7 @@ function bindMessageSidebarClicks() {
       target += "&stream_id=" + stream_id;
     }
 
-    $.post(target, function(data) {
+    $.get(target, function(data) {
       $("#sidebar-inner").html(data);
 
       // Show sidebar if hidden.

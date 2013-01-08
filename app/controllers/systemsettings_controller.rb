@@ -4,8 +4,12 @@ class SystemsettingsController < ApplicationController
   def index
     @has_settings_tabs = true
     @allow_usage_stats = SystemSetting.allow_usage_stats?
+
+    @transports = Transport.all_non_standard
     @alarm_callbacks = AlarmCallback.all
     @message_outputs = MessageOutput.all_non_standard
+    @message_inputs = MessageInput.all_non_standard
+    @initializers = Initializer.all_non_standard
   end
 
   def allow_usage_stats
