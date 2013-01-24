@@ -21,7 +21,7 @@
         @messages = MessageGateway.all_of_host_paginated(@host.host, params[:page], :all => showall)
       else
         @additional_filters = Quickfilter.extract_additional_fields_from_request(params[:filters])
-        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], :hostname => @host.host)
+        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], :hostname => @host.host, :distribution => params[:distribution_field])
         @quickfilter_result_count = @messages.total_result_count
       end
     elsif params[:stream_id]
@@ -38,7 +38,7 @@
         @messages = MessageGateway.all_of_stream_paginated(@stream.id, params[:page], :all => showall)
       else
         @additional_filters = Quickfilter.extract_additional_fields_from_request(params[:filters])
-        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], :stream_id => @stream.id)
+        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], :stream_id => @stream.id, :distribution => params[:distribution_field])
         @quickfilter_result_count = @messages.total_result_count
       end
     else
@@ -53,15 +53,15 @@
         @messages = MessageGateway.all_paginated(params[:page], :all => showall)
       else
         @additional_filters = Quickfilter.extract_additional_fields_from_request(params[:filters])
-        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page])
+        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], :distribution => params[:distribution_field])
         @quickfilter_result_count = @messages.total_result_count
       end
     end
-  #rescue Tire::Search::SearchRequestFailed
-  ##    flash[:error] = "Syntax error in search query or empty index."
-  #    @messages = MessageResult.new
-  #    @total_count = 0
-  #    @quickfilter_result_count = @messages.total_result_count
+  rescue Tire::Search::SearchRequestFailed
+      flash[:error] = "Syntax error in search query or empty index."
+      @messages = MessageResult.new
+      @total_count = 0
+      @quickfilter_result_count = @messages.total_result_count
   end
 
   # Not possible to do this via before_filter because of scope decision by params hash
@@ -163,8 +163,13 @@
         params[:query],
         :stream => @stream,
         :host => @host,
-        :since => @since
+        :since => @since,
+        :distribution => params[:distribution_field]
       )
+
+      if !params[:distribution_field].blank?
+        render :universalsearch_distribution
+      end
     rescue Tire::Search::SearchRequestFailed
       @messages = MessageResult.new
       @messages.total_result_count = 0

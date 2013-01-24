@@ -20,6 +20,8 @@ module Tire::HTTP::Client
   end
 end
 
+# Tire.configure { logger 'log/elasticsearch.log' }
+
 # XXX ELASTIC: try curb as HTTP adapter for tire. reported to be faster: https://gist.github.com/1204159
 class MessageGateway
   include Tire::Model::Search
@@ -90,40 +92,45 @@ class MessageGateway
     wrap search("_id:#{id}").first
   end
 
-  def self.dynamic_search(what)
-    use_all_indices!
-
-    r = Tire.search(ALL_INDICES_ALIAS, what) do
-      sort { by :created_at, 'desc' }
-    end
-
-    wrap(r.results)
-  end
-
   def self.universal_search(page = 1, query, opts)
     used_indices = use_timerange_specific_indices!((opts[:since].blank? or opts[:since] == 0) ? nil : opts[:since])
 
     histogram_only = !opts[:date_histogram].blank? and opts[:date_histogram] == true
+    distribution_only = !opts[:distribution].blank?
 
     r = search(pagination_options(page)) do
-      query { string(query) }
+      query do
+        if !query.blank?
+          string(query)
+        else
+          all
+        end
+      end
 
       filter :term, :streams => opts[:stream].id if opts[:stream]
       filter :term, :host => opts[:host].host if opts[:host]
 
       filter :range, :created_at => { :gte => opts[:since] } if !opts[:since].blank?
 
+      if histogram_only or distribution_only
+        facet_filters = []
+        facet_filters << { :term => { :streams => opts[:stream].id.to_s } } if opts[:stream]
+        facet_filters << { :range => { :created_at => { :gte => opts[:since] } } } if !opts[:since].blank?
+        facet_filters << { :term => { :host => opts[:host].host } } if opts[:host]
+      end
+
       # Request date histogram facet?
       if histogram_only
         facet 'date_histogram' do
           date("histogram_time", :interval => (opts[:date_histogram_interval]))
-          if opts[:stream]
-            facet_filter :term, :streams => opts[:stream].id.to_s
-          end
+          facet_filter :and, facet_filters if facet_filters.count > 0
+        end
+      end
 
-          facet_filter :term, :host => opts[:host].host if opts[:host]
-
-          facet_filter :range, :created_at => { :gte => opts[:since] } if !opts[:since].blank?
+      if distribution_only
+        facet 'distribution' do
+          terms(opts[:distribution], :all_terms => true, :size => 99999)
+          facet_filter :and, facet_filters if facet_filters.count > 0
         end
       end
 
@@ -132,33 +139,22 @@ class MessageGateway
 
     return r.facets["date_histogram"]["entries"] if histogram_only rescue return []
 
-    wrap(r, used_indices)
-  end
+    if distribution_only
+      f = []
+      # [{"term"=>"baz.example.org", "count"=>4}, {"term"=>"bar.example.com", "count"=>3}]
+      r.facets["distribution"]["terms"].each do |r|
+        next if r["count"] == 0 # ES returns the count for *every* field. Skip those that had no matches.
+        f << { :term => r["term"], :count => r["count"] }
+      end
 
-  def self.dynamic_distribution(target, query)
-    use_all_indices!
+      result = MessageResult.new(f)
+      result.total_result_count = r.total
+      result.used_indices = used_indices
 
-    result = Array.new
-
-    query[:facets] = {
-      "distribution_result" => {
-        "terms" => {
-          "field" => target,
-          "all_terms" => true,
-          "size" => 99999
-        }
-      }
-    }
-
-    r = Tire.search(ALL_INDICES_ALIAS, query)
-
-    # [{"term"=>"baz.example.org", "count"=>4}, {"term"=>"bar.example.com", "count"=>3}]
-    r.facets["distribution_result"]["terms"].each do |r|
-      next if r["count"] == 0 # ES returns the count for *every* field. Skip those that had no matches.
-      result << { :distinct => r["term"], :count => r["count"] }
+      return result
     end
 
-    return result
+    wrap(r, used_indices)
   end
 
   def self.all_by_quickfilter(filters, page = 1, opts = {})
@@ -166,6 +162,7 @@ class MessageGateway
     used_indices = use_timerange_specific_indices!(range[:greater])
 
     histogram_only = !opts[:date_histogram].blank? and opts[:date_histogram] == true
+    distribution_only = !opts[:distribution].blank?
 
     if histogram_only
       options = nil
@@ -198,13 +195,13 @@ class MessageGateway
       unless opts[:hostname].blank?
         filter :term, :host => opts[:hostname]
       end
-      unless opts[:host].blank?
-        filter :term, :host => opts[:host]
+
+      unless filters[:host].blank?
+        filter :term, :host => filters[:host]
       end
 
       # Timeframe.
       if !filters[:date].blank?
-        
         filter :range, :created_at => { :gt => range[:greater], :lt => range[:lower] }
       end
 
@@ -232,52 +229,54 @@ class MessageGateway
         filter :term, "_#{key}".to_sym => value
       end
 
+      if histogram_only or distribution_only
+        facet_filters = []
+        # Stream.
+        facet_filters << { :term => { :streams => opts[:stream_id].to_s } } unless opts[:stream_id].blank?
+
+        # Host (one is the actual input field, one is the message context)
+        facet_filters << { :term => { :host => filters[:host] } } unless filters[:host].blank?
+        facet_filters << { :term => { :host => opts[:hostname] } } unless opts[:hostname].blank?
+
+        # Timeframe
+        facet_filters << { :range => { :created_at => { :gt => range[:greater], :lt => range[:lower] } } } unless filters[:date].blank?
+
+        # Facility
+        facet_filters << { :term => { :facility => filters[:facility] } } unless filters[:facility].blank?
+
+        # Severity
+        facet_filters << { :term => { :level => filters[:severity] } } if !filters[:severity].blank? and filters[:severity_above].blank?
+
+        # Severity (or higher)
+        facet_filters << { :range => { :level => { :to => filters[:severity].to_i } } } if !filters[:severity].blank? and !filters[:severity_above].blank?
+
+        # File name
+        facet_filters << { :term => { :file => filters[:file] } } unless filters[:file].blank?
+
+        # Line number
+        facet_filters << { :term => { :line => filters[:line] } } unless filters[:line].blank?
+
+        # Additional fields.
+        Quickfilter.extract_additional_fields_from_request(filters).each do |key, value|
+          facet_filters << { :term => { "_#{key}".to_sym => value } }
+        end
+      end
+
       # Request date histogram facet?
       if histogram_only
         facet 'date_histogram' do
           date("histogram_time", :interval => (opts[:date_histogram_interval]))
 
-          # Stream
-          unless opts[:stream_id].blank?
-            facet_filter :term, :streams => opts[:stream_id].to_s
+          if facet_filters.count > 0
+            facet_filter :and, facet_filters
           end
+        end
+      end
 
-          # Host (one is the actual input field, one is the message context)
-          unless opts[:hostname].blank?
-            facet_filter :term, :host => opts[:hostname]
-          end
-          unless opts[:host].blank?
-            facet_filter :term, :host => opts[:host]
-          end
-
-          # Timeframe.
-          if !filters[:date].blank?
-            facet_filter :range, :created_at => { :gt => range[:greater], :lt => range[:lower] }
-          end
-
-          # Facility
-          facet_filter :term, :facility => filters[:facility] unless filters[:facility].blank?
-
-          # Severity
-          if !filters[:severity].blank? and filters[:severity_above].blank?
-            facet_filter :term, :level => filters[:severity]
-          end
-
-          # Severity (or higher)
-          if !filters[:severity].blank? and !filters[:severity_above].blank?
-            facet_filter :range, :level => { :to => filters[:severity].to_i }
-          end
-
-          # File name
-          facet_filter :term, :file => filters[:file] unless filters[:file].blank?
-
-          # Line number
-          facet_filter :term, :line => filters[:line] unless filters[:line].blank?
-
-          # Additional fields.
-          Quickfilter.extract_additional_fields_from_request(filters).each do |key, value|
-            facet_filter :term, "_#{key}".to_sym => value
-          end
+      if distribution_only
+        facet 'distribution' do
+          terms(opts[:distribution], :all_terms => true, :size => 99999)
+          facet_filter :and, facet_filters if facet_filters.count > 0
         end
       end
 
@@ -286,6 +285,21 @@ class MessageGateway
     end
 
     return r.facets["date_histogram"]["entries"] if histogram_only rescue return []
+
+    if distribution_only
+      f = []
+      # [{"term"=>"baz.example.org", "count"=>4}, {"term"=>"bar.example.com", "count"=>3}]
+      r.facets["distribution"]["terms"].each do |r|
+        next if r["count"] == 0 # ES returns the count for *every* field. Skip those that had no matches.
+        f << { :term => r["term"], :count => r["count"] }
+      end
+
+      result = MessageResult.new(f)
+      result.total_result_count = r.total
+      result.used_indices = used_indices
+
+      return result
+    end
 
     return wrap(r, used_indices)
   end
@@ -319,17 +333,6 @@ class MessageGateway
     end.total
   end
 
-  def self.oldest_message
-    use_all_indices!
-
-    r = search(:size => 1) do
-      query { all }
-      sort { by :created_at, 'asc' }
-    end.first
-
-    wrap(r)
-  end
-
   def self.all_in_range(page, from, to, opts = {})
     raise "You can only pass stream_id OR hostname" if !opts[:stream_id].blank? and !opts[:hostname].blank?
   
@@ -353,14 +356,6 @@ class MessageGateway
     end
 
     wrap(r)
-  end
-
-  def self.delete_message(id)
-    result = Tire.index(ALL_INDICES_ALIAS).remove(TYPE_NAME, id)
-    Tire.index(ALL_INDICES_ALIAS).refresh
-    return false if result.nil? or result["ok"] != true
-
-    return true
   end
 
   # Returns how the text is broken down to terms.
@@ -389,6 +384,12 @@ class MessageGateway
 
   def self.all_additional_fields
     message_mapping(RECENT_INDEX_NAME)["properties"].keys.delete_if{ |field| field.at(0) != '_' or field.length < 2 }.map{ |field| field[1..-1].to_sym }
+  rescue
+    []
+  end
+
+  def self.all_fields
+    all_additional_fields + [ "host", "level", "facility", "file", "line" ]
   rescue
     []
   end
