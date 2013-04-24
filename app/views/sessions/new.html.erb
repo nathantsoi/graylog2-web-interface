@@ -1,7 +1,7 @@
 <% if has_users %>
   <%= form_tag(session_path, :id => "loginform") do -%>
 
-    <%= text_field_tag 'login', "Username", :class => "login-credentials initial", "data-stdtext" => "Username" %>
+    <%= text_field_tag 'login', "Username", :class => "login-credentials initial", placeholder: 'Username', autofocus: :autofocus %>
     <%= password_field_tag 'password', "Password", :class => "login-credentials initial", "data-stdtext" => "Password" %>
 
     <%= check_box_tag 'remember_me', '1', @remember_me %>
