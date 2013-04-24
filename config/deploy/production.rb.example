@@ -1,0 +1,9 @@
+set :user, "app"
+set :rails_env, "production"
+set :use_sudo, false
+
+# primary webserver
+role :web, "[YOUR HOST OR IP]", :primary => true
+role :db, "[YOUR HOST OR IP]", :primary => true
+# if you have another webserver
+role :web, "[YOUR HOST OR IP]"

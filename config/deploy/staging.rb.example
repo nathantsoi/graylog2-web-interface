@@ -1,0 +1,6 @@
+set :user, "app"
+set :rails_env, "staging"
+set :use_sudo, false
+
+role :web, "[YOUR HOST OR IP]", :primary => true
+role :db, "[YOUR HOST OR IP]", :primary => true

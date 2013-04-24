@@ -20,6 +20,7 @@ gem 'therubyracer', '~> 0.10.2'
 gem 'net-ldap', '~> 0.3.1'
 
 group :development, :test do
+  gem 'capistrano'
   # might be useful to generate fake data in development
   gem 'machinist_mongo', '~> 1.2.0', :require => 'machinist/mongoid'
   gem 'faker', '~> 0.9.5'

@@ -1,1 +1,54 @@
-This is Graylog2 - Please see http://www.graylog2.org/ for more information and documentation. Thank you.
+# Deploying the web app
+
+## Tell capistrano about your servers
+
+Copy config/deploy/*.example to the same directory, removing the .example extension
+
+Enter your server IPs or hostnames for staging and production
+
+```
+# replace this with your hostname or IP
+[YOUR HOST OR IP]
+```
+
+
+## Setup the server
+
+```
+# check the directories on the server
+cap deploy:check
+
+# setup any missing structure
+cap deploy:setup
+
+# note: you may need to bundle exec, ie.
+bundle exec cap deploy:setup
+```
+
+
+## Deploy the (production) server
+
+```
+# this assumes you've setup ruby and bundler, I suggest using https://github.com/sstephenson/rbenv/
+bundle exec cap production deploy
+
+# to deploy to stage first:
+bundle exec cap deploy
+```
+
+## Configure graylog
+
+either
+
+A. fork this repo
+   edit the .yml.example files in config to match your env
+   update the config/deploy.rb with your git repo
+   push
+   cap deploy
+
+B. deploy (as in the 'Deploy the server section')
+   ssh onto each webserver and edit the config/*.yml (not .example) files
+   note that this will only need to be done once as the shared folder is not overwritten on deploy
+
+### Homepage
+http://www.graylog2.org/

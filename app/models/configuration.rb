@@ -1,7 +1,14 @@
 class Configuration
-  @general_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/general.yml")
-  @indexer_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/indexer.yml")
-  @ldap_config = YAML::load File.read((ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + "/config/ldap.yml")
+
+  # We need to be able to compile assets on deploy, so this shouldn't cause the
+  # app to bail if the config isn't copied yet. Let's just use the examples
+  CONFIGS = %w/general indexer ldap/
+  config_root = (ENV['GRAYLOG2_BASE'] || Rails.root.to_s) + '/config'
+  CONFIGS.each do |config|
+    path = "#{config_root}/#{config}.yml"
+    path = "#{path}.example" if !File.exists?(path)
+    instance_variable_set("@#{config}_config", YAML::load(File.read(path)))
+  end
 
   def self.config_value(root, nesting, key, default = nil)
     [root, root[nesting.to_s], root[nesting.to_s][key.to_s]].any?(&:blank?) ? default : root[nesting.to_s][key.to_s]
