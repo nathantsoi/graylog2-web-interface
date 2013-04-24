@@ -17,9 +17,6 @@ config/email.yml
 config/indexer.yml
 config/ldap.yml
 
-Capfile
-config/deploy.rb
-
 build/builds/*
 build/logs/*
 
