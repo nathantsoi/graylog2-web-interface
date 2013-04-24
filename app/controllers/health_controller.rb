@@ -1,5 +1,6 @@
 class HealthController < ApplicationController
   filter_access_to :index
+  skip_before_filter :login_required, only: [:ok]
 
   def index
     # Delete outdated server values from instances not running anymore.
@@ -17,6 +18,10 @@ class HealthController < ApplicationController
 
   def currentthroughput
     render :js => { :count => Cluster.throughput }.to_json
+  end
+
+  def ok
+    head :ok
   end
 
 end

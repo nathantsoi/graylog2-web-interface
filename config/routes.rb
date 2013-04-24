@@ -140,5 +140,6 @@ Graylog2WebInterface::Application.routes.draw do
   match '/plugin_configuration/configure/:plugin_type/:typeclass' => "plugin_configuration#configure", :constraints => { :typeclass => /[^\/]+/ }, :via => :get
   match '/plugin_configuration/configure/:plugin_type/:typeclass' => "plugin_configuration#store", :constraints => { :typeclass => /[^\/]+/ }, :via => :post
 
+  match 'ok' => 'health#ok'
   root :to => 'messages#index'
 end
